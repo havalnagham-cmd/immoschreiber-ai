@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImmoSchreiber AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
+        <h1 class="text-3xl font-bold mb-2">ImmoSchreiber AI</h1>
+        <p class="text-slate-600 mb-8">Professioneller Exposé-Generator für Immobilien.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <select id="type" class="w-full border p-2 rounded-lg">
+                    <option>Wohnung</option>
+                    <option>Haus</option>
+                </select>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" id="size" placeholder="Größe (m²)" class="border p-2 rounded-lg">
+                    <input type="number" id="rooms" placeholder="Zimmer" class="border p-2 rounded-lg">
+                </div>
+                <input type="text" id="location" placeholder="Ort (z.B. Dortmund)" class="w-full border p-2 rounded-lg">
+                <input type="text" id="highlights" placeholder="Highlights (z.B. Balkon, Einbauküche)" class="w-full border p-2 rounded-lg">
+                <button onclick="generate()" id="genBtn" class="w-full bg-indigo-700 text-white py-3 rounded-lg font-bold hover:bg-indigo-800 transition disabled:opacity-50">
+                    Exposé Text generieren
+                </button>
+                <p id="errorMsg" class="text-red-600 text-sm hidden"></p>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border">
+                <h2 class="font-bold mb-4">Generierter Text</h2>
+                <div id="output" class="text-sm text-slate-700 min-h-[150px] mb-4 whitespace-pre-wrap">Geben Sie Ihre Daten ein und klicken Sie auf Generieren.</div>
+                <button onclick="copyToClipboard()" class="w-full bg-slate-200 py-2 rounded-lg text-sm font-semibold hover:bg-slate-300 transition">Text kopieren</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function validateInputs() {
+            const size = document.getElementById('size').value;
+            const rooms = document.getElementById('rooms').value;
+            const location = document.getElementById('location').value.trim();
+
+            if (!location) return "Bitte geben Sie einen Ort an.";
+            if (!size || size <= 0) return "Bitte geben Sie eine gültige Größe an.";
+            if (!rooms || rooms <= 0) return "Bitte geben Sie eine gültige Zimmerzahl an.";
+            return null;
+        }
+
+        function showError(msg) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.innerText = msg;
+            errorMsg.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').classList.add('hidden');
+        }
+
+        async function generate() {
+            hideError();
+            const validationError = validateInputs();
+            if (validationError) {
+                showError(validationError);
+                return;
+            }
+
+            const output = document.getElementById('output');
+            const btn = document.getElementById('genBtn');
+            btn.disabled = true;
+            output.innerText = "Generiere...";
+
+            const payload = {
+                type: document.getElementById('type').value,
+                location: document.getElementById('location').value,
+                size: document.getElementById('size').value,
+                rooms: document.getElementById('rooms').value,
+                highlights: document.getElementById('highlights').value
+            };
+
+            try {
+                // NOTE: no API key here — the browser only talks to OUR backend.
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    if (response.status === 429) {
+                        showError("Zu viele Anfragen. Bitte versuchen Sie es später erneut.");
+                    } else {
+                        showError(errData.error || "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.");
+                    }
+                    output.innerText = "Geben Sie Ihre Daten ein und klicken Sie auf Generieren.";
+                    return;
+                }
+
+                const data = await response.json();
+                output.innerText = data.text;
+            } catch (error) {
+                showError("Verbindungsfehler. Bitte prüfen Sie Ihre Internetverbindung.");
+                output.innerText = "Geben Sie Ihre Daten ein und klicken Sie auf Generieren.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function copyToClipboard() {
+            const text = document.getElementById('output').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Text wurde in die Zwischenablage kopiert!");
+            });
+        }
+    </script>
+</body>
+</html>
