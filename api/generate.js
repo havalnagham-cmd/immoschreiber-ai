@@ -1,7 +1,3 @@
-// api/generate.js
-// Diese Datei läuft auf dem Server (Vercel), NIEMALS im Browser.
-// Der API-Key ist hier sicher, weil der Nutzer diesen Code nie sieht.
-
 const requestLog = new Map();
 const MAX_REQUESTS_PER_HOUR = 20;
 
@@ -14,7 +10,7 @@ function isRateLimited(ip) {
     return timestamps.length > MAX_REQUESTS_PER_HOUR;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Methode nicht erlaubt.' });
     }
@@ -70,4 +66,19 @@ Der Text soll ca. 150-200 Wörter lang sein, professionell klingen und für ein 
         if (!response.ok) {
             const errText = await response.text();
             console.error('OpenAI API Fehler:', errText);
-            return res.status(502).json({ error: 'Fehler beim
+            return res.status(502).json({ error: 'Fehler beim Generieren des Textes. Bitte später erneut versuchen.' });
+        }
+
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content;
+
+        if (!text) {
+            return res.status(502).json({ error: 'Keine Antwort erhalten. Bitte erneut versuchen.' });
+        }
+
+        return res.status(200).json({ text });
+    } catch (error) {
+        console.error('Serverfehler:', error);
+        return res.status(500).json({ error: 'Interner Serverfehler.' });
+    }
+};
